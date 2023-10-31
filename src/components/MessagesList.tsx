@@ -31,9 +31,11 @@ const MessagesList = () => {
                   ? 'from-primary-700 to-primary-600 mr-2 bg-gradient-to-br text-white'
                   : 'ml-2 bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200'
               }`}
-            >
-              {message.content.trim()}
-            </div>
+              dangerouslySetInnerHTML={{
+                __html: `${message.content.trim().split('\n').join('<br/>')}`
+              }}
+            />
+
             {isUser && (
               <img
                 src="https://www.teamsmart.ai/next-assets/profile-image.png"
