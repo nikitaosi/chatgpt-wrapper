@@ -1,21 +1,21 @@
 # ChatGPT Wrapper
 
-Минималистичный чат на Next.js с потоковой выдачей ответа через OpenAI Responses API и автономным мок-режимом для демо.
+A minimal Next.js chat app with streamed responses via the OpenAI Responses API and a built-in mock mode for demos.
 
-## Запуск
+## Getting started
 
-Требуется Node.js 20.9 или новее и pnpm.
+Requires Node.js 20.9 or later and pnpm.
 
 ```bash
 cp .env.example .env.local
-# Добавьте OPENAI_API_KEY в .env.local
+# Add your OPENAI_API_KEY to .env.local
 pnpm install
 pnpm dev
 ```
 
-Приложение откроется на [http://localhost:3000](http://localhost:3000).
+The app will be available at [http://localhost:3000](http://localhost:3000).
 
-## Проверки
+## Checks
 
 ```bash
 pnpm lint
@@ -24,12 +24,12 @@ pnpm test
 pnpm build
 ```
 
-Модель можно переопределить переменной `OPENAI_MODEL`. По умолчанию используется `gpt-4.1-mini`.
+Set `OPENAI_MODEL` to use a different model. The default is `gpt-4.1-mini`.
 
-## Демо без API-ключа
+## Demo without an API key
 
-Для временного онлайн-демо задайте `MOCK_OPENAI=true`. Приложение будет отправлять один фиксированный ответ небольшими SSE-чанками и не станет обращаться к OpenAI. Если `OPENAI_API_KEY` не задан, демо-режим включается автоматически — так свежий деплой без ключа безопасно показывает стриминг, не обращаясь к API.
+Set `MOCK_OPENAI=true` for a temporary online demo. The app streams a fixed response in small SSE chunks and does not make requests to OpenAI. If `OPENAI_API_KEY` is not set, demo mode is enabled automatically, so a fresh deployment without a key can safely demonstrate streaming without calling the API.
 
-Чтобы закрыть демо паролем, задайте `APP_PASSWORD` в переменных окружения хостинга. Браузер запросит HTTP Basic Auth; имя пользователя по умолчанию — `preview`, его можно переопределить через `APP_USERNAME`. Используйте HTTPS и задайте пароль в настройках хостинга, а не в репозитории.
+To protect the demo with a password, set `APP_PASSWORD` in your hosting provider's environment variables. The browser will prompt for HTTP Basic Auth. The default username is `preview`; override it with `APP_USERNAME` if needed. Use HTTPS, and set the password in your hosting provider's settings rather than in the repository.
 
-Перед включением настоящего API-ключа для интернет-деплоя настройте парольную защиту. Для реальных ответов добавьте `OPENAI_API_KEY` как secret-переменную хостинга и убедитесь, что `MOCK_OPENAI` не установлен в `true`.
+Before enabling a real API key on an internet-facing deployment, configure password protection. To use real responses, add `OPENAI_API_KEY` as a secret environment variable in your hosting provider and make sure `MOCK_OPENAI` is not set to `true`.
