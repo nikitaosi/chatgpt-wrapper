@@ -1,40 +1,35 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# ChatGPT Wrapper
 
-## Getting Started
+Минималистичный чат на Next.js с потоковой выдачей ответа через OpenAI Responses API и автономным мок-режимом для демо.
 
-First, run the development server:
+## Запуск
+
+Требуется Node.js 20.9 или новее и pnpm.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+cp .env.example .env.local
+# Добавьте OPENAI_API_KEY в .env.local
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Приложение откроется на [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+## Проверки
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/createMessage.ts`.
+```bash
+pnpm lint
+pnpm type-check
+pnpm test
+pnpm build
+```
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+Модель можно переопределить переменной `OPENAI_MODEL`. По умолчанию используется `gpt-4.1-mini`.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+## Демо без API-ключа
 
-## Learn More
+Для временного онлайн-демо задайте `MOCK_OPENAI=true`. Приложение будет отправлять один фиксированный ответ небольшими SSE-чанками и не станет обращаться к OpenAI. Если `OPENAI_API_KEY` не задан, демо-режим включается автоматически — так свежий деплой без ключа безопасно показывает стриминг, не обращаясь к API.
 
-To learn more about Next.js, take a look at the following resources:
+Чтобы закрыть демо паролем, задайте `APP_PASSWORD` в переменных окружения хостинга. Браузер запросит HTTP Basic Auth; имя пользователя по умолчанию — `preview`, его можно переопределить через `APP_USERNAME`. Используйте HTTPS и задайте пароль в настройках хостинга, а не в репозитории.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Перед включением настоящего API-ключа для интернет-деплоя настройте парольную защиту. Для реальных ответов добавьте `OPENAI_API_KEY` как secret-переменную хостинга и убедитесь, что `MOCK_OPENAI` не установлен в `true`.

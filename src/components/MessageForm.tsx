@@ -1,65 +1,59 @@
-import { Button, TextArea } from '@adobe/react-spectrum'
-import { FormEvent, KeyboardEvent, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, useState } from 'react'
+
 import { useMessages } from 'shared/lib/useMessages'
-import { HelpText } from '@react-spectrum/label'
 
-const MessageForm = () => {
+export default function MessageForm() {
   const [content, setContent] = useState('')
-  const { addMessage } = useMessages()
+  const { addMessage, isLoadingAnswer, stopResponse } = useMessages()
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e?.preventDefault()
-    addMessage(content)
+  const submit = async () => {
+    const message = content.trim()
+    if (!message || isLoadingAnswer) return
     setContent('')
+    await addMessage(message)
   }
 
-  const checkEnter = (e: KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      addMessage(content)
-      setContent('')
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void submit()
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault()
+      void submit()
     }
   }
 
   return (
-    <form className="relative mx-auto max-w-3xl rounded-t-xl" onSubmit={handleSubmit}>
-      <div className=" supports-backdrop-blur:bg-white/95 h-[130px] rounded-t-xl border-t border-l border-r border-gray-200 border-gray-500/10 bg-white p-5 backdrop-blur dark:border-gray-50/[0.06]">
-        <label htmlFor="content" className="sr-only">
-          Your message
-        </label>
-        <TextArea
-          name="content"
+    <div className="composer-wrap">
+      <form className="composer" onSubmit={handleSubmit}>
+        <label htmlFor="message" className="sr-only">Сообщение</label>
+        <textarea
+          id="message"
+          name="message"
           value={content}
-          autoFocus
-          aria-label="label"
-          // className="border-0 !p-3 text-gray-900 shadow-none ring-1 ring-gray-300/40 backdrop-blur focus:outline-none focus:ring-gray-300/80 dark:bg-gray-800/80 dark:text-white dark:placeholder-gray-400 dark:ring-0"
-          onChange={setContent}
-          onKeyDown={(e) => checkEnter(e)}
+          rows={1}
+          maxLength={12_000}
+          placeholder="Напишите сообщение…"
+          aria-describedby="composer-hint"
+          onChange={(event) => setContent(event.target.value)}
+          onKeyDown={handleKeyDown}
         />
-        <HelpText description="Enter your message here..." />
-        <div className="absolute right-8 bottom-10">
-          <div className="flex space-x-3">
-            <Button variant="accent" type="submit">
-              Send
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="ml-1 h-4 w-4"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
-                />
-              </svg>
-            </Button>
-          </div>
-        </div>
-      </div>
-    </form>
+        {isLoadingAnswer ? (
+          <button className="stop-button" type="button" onClick={stopResponse}>
+            <span aria-hidden="true" />
+            Остановить
+          </button>
+        ) : (
+          <button className="send-button" type="submit" disabled={!content.trim()} aria-label="Отправить">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m5 12 7-7 7 7M12 5v14" />
+            </svg>
+          </button>
+        )}
+      </form>
+      <p id="composer-hint">Enter — отправить · Shift + Enter — новая строка</p>
+    </div>
   )
 }
-
-export default MessageForm

@@ -1,20 +1,43 @@
-// import Layout from '@/components/Layout'
+import Head from 'next/head'
+
 import MessageForm from 'components/MessageForm'
 import MessagesList from 'components/MessagesList'
-import { NextPage } from 'next'
-import { MessagesProvider } from 'shared/lib/useMessages'
+import { MessagesProvider, useMessages } from 'shared/lib/useMessages'
 
-const IndexPage: NextPage = () => {
+function Chat() {
+  const { clearMessages } = useMessages()
+
   return (
-    <MessagesProvider>
-      {/*<Layout>*/}
+    <main className="app-shell">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">C</span>
+          <div>
+            <strong>Chat</strong>
+            <span>OpenAI assistant</span>
+          </div>
+        </div>
+        <button className="new-chat" type="button" onClick={clearMessages}>
+          Новый чат
+        </button>
+      </header>
+
       <MessagesList />
-      <div className="fixed bottom-0 right-0 left-0">
-        <MessageForm />
-      </div>
-      {/*</Layout>*/}
-    </MessagesProvider>
+      <MessageForm />
+    </main>
   )
 }
 
-export default IndexPage
+export default function IndexPage() {
+  return (
+    <>
+      <Head>
+        <title>Chat · OpenAI assistant</title>
+        <meta name="description" content="Минималистичный интерфейс для общения с OpenAI" />
+      </Head>
+      <MessagesProvider>
+        <Chat />
+      </MessagesProvider>
+    </>
+  )
+}

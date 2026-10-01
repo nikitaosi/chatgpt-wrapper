@@ -1,29 +1,154 @@
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
+import OpenAI from 'openai'
 
-export default async function createMessage(req: NextApiRequest, res: NextApiResponse) {
-  const { messages } = req.body
-  const apiKey = process.env.OPENAI_API_KEY
-  const url = 'https://api.openai.com/v1/chat/completions'
+import type { ApiMessage } from 'shared/types/chat'
 
-  const body = JSON.stringify({
-    messages,
-    model: 'gpt-3.5-turbo',
-    stream: false
+const MAX_MESSAGES = 100
+const MAX_CONTENT_LENGTH = 12_000
+export const MOCK_REPLY =
+  'Иногда облака собираются в тихую очередь. Ветер пересчитывает их, забывает число и начинает сначала. А где-то рядом остывает чай, которому совершенно некуда спешить.'
+const MOCK_CHUNK_DELAY_MS = 55
+
+export function shouldUseMockMode(
+  mockSetting = process.env.MOCK_OPENAI,
+  apiKey = process.env.OPENAI_API_KEY
+) {
+  return mockSetting === 'true' || !apiKey
+}
+
+export function getOpenAIErrorDetails(error: unknown) {
+  const candidate = error as {
+    status?: unknown
+    code?: unknown
+    error?: { code?: unknown }
+  } | null
+  const status = typeof candidate?.status === 'number' ? candidate.status : undefined
+  const code = candidate?.code ?? candidate?.error?.code
+
+  if (code === 'credit_balance_exhausted') {
+    return {
+      status: 402,
+      message: 'У OpenAI API закончился баланс. Пополните баланс аккаунта и попробуйте ещё раз.'
+    }
+  }
+  if (status === 401) {
+    return { status: 502, message: 'OpenAI отклонил API-ключ. Проверьте OPENAI_API_KEY.' }
+  }
+  if (status === 429 || code === 'insufficient_quota') {
+    return {
+      status: 429,
+      message: 'OpenAI ограничил запрос. Проверьте баланс и лимиты API-аккаунта.'
+    }
+  }
+
+  return { status: 502, message: 'OpenAI временно недоступен. Попробуйте ещё раз.' }
+}
+
+function writeEvent(res: NextApiResponse, event: string, data: unknown) {
+  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+}
+
+export function getMockChunks(text = MOCK_REPLY) {
+  const words = text.match(/\S+\s*/gu) ?? []
+  const chunkSizes = [1, 2, 1, 3]
+  const chunks: string[] = []
+  let offset = 0
+  let sizeIndex = 0
+
+  while (offset < words.length) {
+    const size = chunkSizes[sizeIndex % chunkSizes.length]
+    chunks.push(words.slice(offset, offset + size).join(''))
+    offset += size
+    sizeIndex += 1
+  }
+
+  return chunks
+}
+
+function startStream(res: NextApiResponse) {
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+  res.setHeader('Cache-Control', 'no-cache, no-transform')
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('X-Accel-Buffering', 'no')
+  res.flushHeaders()
+}
+
+async function streamMockReply(res: NextApiResponse) {
+  startStream(res)
+
+  for (const text of getMockChunks()) {
+    if (res.destroyed) return
+    writeEvent(res, 'delta', { text })
+    await new Promise((resolve) => setTimeout(resolve, MOCK_CHUNK_DELAY_MS))
+  }
+
+  if (res.destroyed) return
+  writeEvent(res, 'done', {})
+  res.end()
+}
+
+export function parseMessages(value: unknown): ApiMessage[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_MESSAGES) return null
+
+  const messages = value.filter((message): message is ApiMessage => {
+    if (!message || typeof message !== 'object') return false
+    const candidate = message as Partial<ApiMessage>
+    return (
+      (candidate.role === 'user' || candidate.role === 'assistant') &&
+      typeof candidate.content === 'string' &&
+      candidate.content.trim().length > 0 &&
+      candidate.content.length <= MAX_CONTENT_LENGTH
+    )
   })
 
+  return messages.length === value.length ? messages : null
+}
+
+export default async function createMessage(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST')
+    return res.status(405).json({ error: 'Метод не поддерживается' })
+  }
+
+  const useMock = shouldUseMockMode()
+
+  const messages = parseMessages(req.body?.messages)
+  if (!messages) return res.status(400).json({ error: 'Некорректная история сообщений' })
+
+  if (useMock) return streamMockReply(res)
+
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
-      },
-      body
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    const stream = await openai.responses.create({
+      model: process.env.OPENAI_MODEL ?? 'gpt-4.1-mini',
+      instructions: 'You are a helpful assistant. Reply in the language used by the user.',
+      input: messages,
+      stream: true,
+      store: false
     })
-    const data = await response.json()
-    res.status(200).json({ data })
-    /* eslint-disable */
-  } catch (error: any) {
-    res.status(500).json({ error: error.message })
+
+    startStream(res)
+
+    for await (const event of stream) {
+      if (event.type === 'response.output_text.delta') {
+        writeEvent(res, 'delta', { text: event.delta })
+      } else if (event.type === 'error') {
+        writeEvent(res, 'error', { message: event.message })
+        res.end()
+        return
+      }
+    }
+
+    writeEvent(res, 'done', {})
+    res.end()
+  } catch (error) {
+    const details = getOpenAIErrorDetails(error)
+    console.error('OpenAI streaming request failed', {
+      status: (error as { status?: number })?.status,
+      code: (error as { code?: string })?.code
+    })
+    if (!res.headersSent) return res.status(details.status).json({ error: details.message })
+    writeEvent(res, 'error', { message: details.message })
+    res.end()
   }
 }

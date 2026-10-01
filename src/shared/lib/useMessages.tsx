@@ -1,75 +1,99 @@
-import ChatCompletionRequestMessage from 'openai'
-// import {Toast} from "@adobe/react-spectrum"
-import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
-import { sendMessage } from './sendMessage'
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useRef,
+  useState
+} from 'react'
 
-interface ContextProps {
-  messages: ChatCompletionRequestMessage[]
-  addMessage: (content: string) => Promise<void>
-  isLoadingAnswer: boolean
+import { streamMessage } from './sendMessage'
+import type { ApiMessage, ChatMessage } from 'shared/types/chat'
+
+const WELCOME_MESSAGE: ChatMessage = {
+  id: 'welcome',
+  role: 'assistant',
+  content: 'Привет! Чем могу помочь сегодня?'
 }
 
-const ChatsContext = createContext<Partial<ContextProps>>({})
+interface MessagesContextValue {
+  messages: ChatMessage[]
+  addMessage: (content: string) => Promise<void>
+  clearMessages: () => void
+  stopResponse: () => void
+  isLoadingAnswer: boolean
+  error: string | null
+}
+
+const MessagesContext = createContext<MessagesContextValue | null>(null)
+const createId = () => crypto.randomUUID()
 
 export function MessagesProvider({ children }: { children: ReactNode }) {
-  // const { addToast } = useToast()
-  const [messages, setMessages] = useState<ChatCompletionRequestMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE])
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const controllerRef = useRef<AbortController | null>(null)
 
-  useEffect(() => {
-    const initializeChat = () => {
-      // #TODO remove any
-      const systemMessage: any = {
-        role: 'system',
-        content: 'You are ChatGPT, a large language model trained by OpenAI.'
-      }
-      const welcomeMessage: any = {
-        role: 'assistant',
-        content: 'Здравствуйте! Как я могу вам помочь?'
-      }
-      setMessages([systemMessage, welcomeMessage])
-    }
+  const stopResponse = useCallback(() => controllerRef.current?.abort(), [])
 
-    // When no messages are present, we initialize the chat the system message and the welcome message
-    // We hide the system message from the user in the UI
-    if (!messages?.length) {
-      initializeChat()
-    }
-  }, [messages?.length, setMessages])
+  const clearMessages = useCallback(() => {
+    controllerRef.current?.abort()
+    setMessages([WELCOME_MESSAGE])
+    setError(null)
+  }, [])
 
-  const addMessage = async (content: string) => {
+  const addMessage = useCallback(async (rawContent: string) => {
+    const content = rawContent.trim()
+    if (!content || isLoadingAnswer) return
+
+    const userMessage: ChatMessage = { id: createId(), role: 'user', content }
+    const assistantId = createId()
+    const history = [...messages, userMessage]
+    const apiMessages: ApiMessage[] = history
+      .filter((message) => message.id !== 'welcome')
+      .map(({ role, content: messageContent }) => ({ role, content: messageContent }))
+
+    setMessages([...history, { id: assistantId, role: 'assistant', content: '' }])
     setIsLoadingAnswer(true)
+    setError(null)
+
+    const controller = new AbortController()
+    controllerRef.current = controller
+
     try {
-      const newMessage: any = {
-        role: 'user',
-        content
-      }
-      const newMessages = [...messages, newMessage]
-
-      // Add the user message to the state, so we can see it immediately
-      setMessages(newMessages)
-
-      const { data } = await sendMessage(newMessages)
-      const reply = data.choices[0].message
-
-      // Add the assistant message to the state
-      setMessages([...newMessages, reply])
-    } catch (error) {
-      // Show error when something goes wrong
-      console.log(error)
-      // addToast({ title: 'An error occurred', type: 'error' })
+      await streamMessage(apiMessages, {
+        signal: controller.signal,
+        onChunk: (chunk) => {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? { ...message, content: message.content + chunk }
+                : message
+            )
+          )
+        }
+      })
+    } catch (streamError) {
+      if (streamError instanceof DOMException && streamError.name === 'AbortError') return
+      setMessages((current) => current.filter((message) => message.id !== assistantId))
+      setError(streamError instanceof Error ? streamError.message : 'Что-то пошло не так')
     } finally {
+      controllerRef.current = null
       setIsLoadingAnswer(false)
     }
-  }
+  }, [isLoadingAnswer, messages])
 
   return (
-    <ChatsContext.Provider value={{ messages, addMessage, isLoadingAnswer }}>
+    <MessagesContext.Provider
+      value={{ messages, addMessage, clearMessages, stopResponse, isLoadingAnswer, error }}
+    >
       {children}
-    </ChatsContext.Provider>
+    </MessagesContext.Provider>
   )
 }
 
-export const useMessages = () => {
-  return useContext(ChatsContext) as ContextProps
+export function useMessages() {
+  const context = useContext(MessagesContext)
+  if (!context) throw new Error('useMessages must be used inside MessagesProvider')
+  return context
 }
