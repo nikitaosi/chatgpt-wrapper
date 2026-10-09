@@ -25,7 +25,7 @@ export function isAuthorized(authorization: string | null) {
 export function proxy(request: NextRequest) {
   if (isAuthorized(request.headers.get('authorization'))) return NextResponse.next()
 
-  return new NextResponse('Для доступа к демо введите имя пользователя и пароль.', {
+  return new NextResponse('To access the demo, enter your username and password.', {
     status: 401,
     headers: {
       'WWW-Authenticate': 'Basic realm="Chat demo", charset="UTF-8"',

@@ -16,14 +16,14 @@ vi.mock('shared/lib/useMessages', () => ({
 describe('MessageForm', () => {
   it('submits with Enter and keeps Shift+Enter for a new line', () => {
     render(<MessageForm />)
-    const input = screen.getByRole('textbox', { name: 'Сообщение' })
+    const input = screen.getByRole('textbox', { name: 'Message' })
 
-    fireEvent.change(input, { target: { value: '  Тест  ' } })
+    fireEvent.change(input, { target: { value: '  Test  ' } })
     fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
     expect(addMessage).not.toHaveBeenCalled()
 
     fireEvent.keyDown(input, { key: 'Enter' })
-    expect(addMessage).toHaveBeenCalledWith('Тест')
+    expect(addMessage).toHaveBeenCalledWith('Test')
     expect(input).toHaveValue('')
   })
 })

@@ -6,8 +6,8 @@ import type { ApiMessage } from 'shared/types/chat'
 const MAX_MESSAGES = 100
 const MAX_CONTENT_LENGTH = 12_000
 export const MOCK_REPLY =
-  'Иногда облака собираются в тихую очередь. Ветер пересчитывает их, забывает число и начинает сначала. А где-то рядом остывает чай, которому совершенно некуда спешить.'
-const MOCK_CHUNK_DELAY_MS = 55
+  'Sometimes clouds drift into a quiet queue. The wind counts them, loses track, and starts over. Nearby, a cup of tea slowly cools, in no hurry at all.'
+const MOCK_CHUNK_DELAYS_MS = [80, 140, 105, 190, 95, 155] as const
 
 export function shouldUseMockMode(
   mockSetting = process.env.MOCK_OPENAI,
@@ -28,20 +28,20 @@ export function getOpenAIErrorDetails(error: unknown) {
   if (code === 'credit_balance_exhausted') {
     return {
       status: 402,
-      message: 'У OpenAI API закончился баланс. Пополните баланс аккаунта и попробуйте ещё раз.'
+      message: 'Your OpenAI API balance is depleted. Add funds to your account and try again.'
     }
   }
   if (status === 401) {
-    return { status: 502, message: 'OpenAI отклонил API-ключ. Проверьте OPENAI_API_KEY.' }
+    return { status: 502, message: 'OpenAI rejected the API key. Check OPENAI_API_KEY.' }
   }
   if (status === 429 || code === 'insufficient_quota') {
     return {
       status: 429,
-      message: 'OpenAI ограничил запрос. Проверьте баланс и лимиты API-аккаунта.'
+      message: 'OpenAI rate-limited the request. Check your API account balance and limits.'
     }
   }
 
-  return { status: 502, message: 'OpenAI временно недоступен. Попробуйте ещё раз.' }
+  return { status: 502, message: 'OpenAI is temporarily unavailable. Please try again.' }
 }
 
 function writeEvent(res: NextApiResponse, event: string, data: unknown) {
@@ -65,6 +65,10 @@ export function getMockChunks(text = MOCK_REPLY) {
   return chunks
 }
 
+export function getMockChunkDelay(index: number) {
+  return MOCK_CHUNK_DELAYS_MS[index % MOCK_CHUNK_DELAYS_MS.length]
+}
+
 function startStream(res: NextApiResponse) {
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
   res.setHeader('Cache-Control', 'no-cache, no-transform')
@@ -76,10 +80,10 @@ function startStream(res: NextApiResponse) {
 async function streamMockReply(res: NextApiResponse) {
   startStream(res)
 
-  for (const text of getMockChunks()) {
+  for (const [index, text] of getMockChunks().entries()) {
     if (res.destroyed) return
     writeEvent(res, 'delta', { text })
-    await new Promise((resolve) => setTimeout(resolve, MOCK_CHUNK_DELAY_MS))
+    await new Promise((resolve) => setTimeout(resolve, getMockChunkDelay(index)))
   }
 
   if (res.destroyed) return
@@ -107,13 +111,13 @@ export function parseMessages(value: unknown): ApiMessage[] | null {
 export default async function createMessage(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
-    return res.status(405).json({ error: 'Метод не поддерживается' })
+    return res.status(405).json({ error: 'Method not supported' })
   }
 
   const useMock = shouldUseMockMode()
 
   const messages = parseMessages(req.body?.messages)
-  if (!messages) return res.status(400).json({ error: 'Некорректная история сообщений' })
+  if (!messages) return res.status(400).json({ error: 'Invalid message history' })
 
   if (useMock) return streamMockReply(res)
 
@@ -121,7 +125,7 @@ export default async function createMessage(req: NextApiRequest, res: NextApiRes
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const stream = await openai.responses.create({
       model: process.env.OPENAI_MODEL ?? 'gpt-4.1-mini',
-      instructions: 'You are a helpful assistant. Reply in the language used by the user.',
+      instructions: 'You are a helpful assistant. Always reply in English.',
       input: messages,
       stream: true,
       store: false

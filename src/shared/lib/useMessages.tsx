@@ -13,7 +13,7 @@ import type { ApiMessage, ChatMessage } from 'shared/types/chat'
 const WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: 'Привет! Чем могу помочь сегодня?'
+  content: 'Hello! How can I help today?'
 }
 
 interface MessagesContextValue {
@@ -76,7 +76,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     } catch (streamError) {
       if (streamError instanceof DOMException && streamError.name === 'AbortError') return
       setMessages((current) => current.filter((message) => message.id !== assistantId))
-      setError(streamError instanceof Error ? streamError.message : 'Что-то пошло не так')
+      setError(streamError instanceof Error ? streamError.message : 'Something went wrong.')
     } finally {
       controllerRef.current = null
       setIsLoadingAnswer(false)

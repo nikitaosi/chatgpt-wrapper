@@ -18,10 +18,10 @@ export async function streamMessage(
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { error?: string } | null
-    throw new Error(payload?.error ?? 'Не удалось получить ответ')
+    throw new Error(payload?.error ?? 'Could not get a response.')
   }
 
-  if (!response.body) throw new Error('Браузер не поддерживает потоковые ответы')
+  if (!response.body) throw new Error('Your browser does not support streamed responses.')
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
@@ -43,11 +43,11 @@ export async function streamMessage(
     try {
       payload = JSON.parse(data.join('\n')) as { text?: string; message?: string }
     } catch {
-      throw new Error('Получен некорректный фрагмент ответа')
+      throw new Error('The server sent an invalid response chunk.')
     }
 
     if (eventName === 'delta' && typeof payload.text === 'string') onChunk(payload.text)
-    if (eventName === 'error') throw new Error(payload.message ?? 'Не удалось получить ответ')
+    if (eventName === 'error') throw new Error(payload.message ?? 'Could not get a response.')
     if (eventName === 'done') completed = true
   }
 
@@ -63,5 +63,5 @@ export async function streamMessage(
   }
 
   if (buffer.trim()) handleEvent(buffer)
-  if (!completed) throw new Error('Поток ответа неожиданно завершился')
+  if (!completed) throw new Error('The response stream ended unexpectedly.')
 }

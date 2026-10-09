@@ -11,7 +11,7 @@ export default function MessagesList() {
   }, [messages])
 
   return (
-    <section className="conversation" aria-label="История сообщений" aria-live="polite">
+    <section className="conversation" aria-label="Conversation history" aria-live="polite">
       <div className="message-list">
         {messages.map((message) => {
           const isUser = message.role === 'user'
@@ -19,14 +19,14 @@ export default function MessagesList() {
             <article className={`message-row ${isUser ? 'message-row-user' : ''}`} key={message.id}>
               {!isUser && <span className="avatar assistant-avatar" aria-hidden="true">C</span>}
               <div className={`message ${isUser ? 'message-user' : 'message-assistant'}`}>
-                {message.content || <span className="typing-cursor" aria-label="Генерируется ответ" />}
+                {message.content || <span className="typing-cursor" aria-label="Generating response" />}
               </div>
-              {isUser && <span className="avatar user-avatar" aria-hidden="true">Вы</span>}
+              {isUser && <span className="avatar user-avatar" aria-hidden="true">You</span>}
             </article>
           )
         })}
         {error && <p className="error-message" role="alert">{error}</p>}
-        {isLoadingAnswer && <span className="stream-status sr-only">Ответ генерируется</span>}
+        {isLoadingAnswer && <span className="stream-status sr-only">Response is being generated</span>}
         <div ref={endRef} />
       </div>
     </section>

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   getMockChunks,
+  getMockChunkDelay,
   getOpenAIErrorDetails,
   MOCK_REPLY,
   parseMessages,
@@ -11,8 +12,8 @@ import {
 describe('parseMessages', () => {
   it('accepts a valid conversation', () => {
     const messages = [
-      { role: 'user', content: 'Привет' },
-      { role: 'assistant', content: 'Здравствуйте' }
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Hi there' }
     ]
 
     expect(parseMessages(messages)).toEqual(messages)
@@ -33,7 +34,7 @@ describe('getOpenAIErrorDetails', () => {
   it('explains exhausted API balance', () => {
     expect(getOpenAIErrorDetails({ code: 'credit_balance_exhausted' })).toEqual({
       status: 402,
-      message: 'У OpenAI API закончился баланс. Пополните баланс аккаунта и попробуйте ещё раз.'
+      message: 'Your OpenAI API balance is depleted. Add funds to your account and try again.'
     })
   })
 })
@@ -44,6 +45,14 @@ describe('getMockChunks', () => {
 
     expect(chunks.length).toBeGreaterThan(5)
     expect(chunks.join('')).toBe(MOCK_REPLY)
+  })
+
+  it('uses uneven delays that are slightly slower than the original stream', () => {
+    const delays = Array.from({ length: 6 }, (_, index) => getMockChunkDelay(index))
+
+    expect(new Set(delays).size).toBeGreaterThan(1)
+    expect(delays.every((delay) => delay > 55)).toBe(true)
+    expect(getMockChunkDelay(6)).toBe(delays[0])
   })
 })
 

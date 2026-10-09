@@ -18,7 +18,7 @@ function Chat() {
           </div>
         </div>
         <button className="new-chat" type="button" onClick={clearMessages}>
-          Новый чат
+          New chat
         </button>
       </header>
 
@@ -33,7 +33,7 @@ export default function IndexPage() {
     <>
       <Head>
         <title>Chat · OpenAI assistant</title>
-        <meta name="description" content="Минималистичный интерфейс для общения с OpenAI" />
+        <meta name="description" content="A minimal chat interface for OpenAI" />
       </Head>
       <MessagesProvider>
         <Chat />

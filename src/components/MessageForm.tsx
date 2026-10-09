@@ -28,14 +28,14 @@ export default function MessageForm() {
   return (
     <div className="composer-wrap">
       <form className="composer" onSubmit={handleSubmit}>
-        <label htmlFor="message" className="sr-only">Сообщение</label>
+        <label htmlFor="message" className="sr-only">Message</label>
         <textarea
           id="message"
           name="message"
           value={content}
           rows={1}
           maxLength={12_000}
-          placeholder="Напишите сообщение…"
+          placeholder="Type a message…"
           aria-describedby="composer-hint"
           onChange={(event) => setContent(event.target.value)}
           onKeyDown={handleKeyDown}
@@ -43,17 +43,17 @@ export default function MessageForm() {
         {isLoadingAnswer ? (
           <button className="stop-button" type="button" onClick={stopResponse}>
             <span aria-hidden="true" />
-            Остановить
+            Stop
           </button>
         ) : (
-          <button className="send-button" type="submit" disabled={!content.trim()} aria-label="Отправить">
+          <button className="send-button" type="submit" disabled={!content.trim()} aria-label="Send message">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m5 12 7-7 7 7M12 5v14" />
             </svg>
           </button>
         )}
       </form>
-      <p id="composer-hint">Enter — отправить · Shift + Enter — новая строка</p>
+      <p id="composer-hint">Enter to send · Shift + Enter for a new line</p>
     </div>
   )
 }
