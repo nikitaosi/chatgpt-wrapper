@@ -2,19 +2,15 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import OpenAI from 'openai'
 
 import type { ApiMessage } from 'shared/types/chat'
+import { shouldUseMockMode } from 'shared/lib/demoMode'
+
+export { shouldUseMockMode } from 'shared/lib/demoMode'
 
 const MAX_MESSAGES = 100
 const MAX_CONTENT_LENGTH = 12_000
 export const MOCK_REPLY =
   'Sometimes clouds drift into a quiet queue. The wind counts them, loses track, and starts over. Nearby, a cup of tea slowly cools, in no hurry at all.'
 const MOCK_CHUNK_DELAYS_MS = [80, 140, 105, 190, 95, 155] as const
-
-export function shouldUseMockMode(
-  mockSetting = process.env.MOCK_OPENAI,
-  apiKey = process.env.OPENAI_API_KEY
-) {
-  return mockSetting === 'true' || !apiKey
-}
 
 export function getOpenAIErrorDetails(error: unknown) {
   const candidate = error as {
